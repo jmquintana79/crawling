@@ -10,7 +10,7 @@ Source: https://stackoverflow.com/questions/46629681/how-to-find-recursively-all
 
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 import re
 import posixpath
 
@@ -63,46 +63,62 @@ def get_norm_url( url, module = posixpath ):
     return module.normpath( url )
 
 
-## get urls recursivelly
-def recursiveUrl(url, link, depth, max_depth, verbose):
-    if depth == max_depth:
-        return url
-    else:
+class Crawler():
+    def __init__(self, max_depth = 0, parse_base = False ,verbose = False):
+        self.max_depth = max_depth
+        self.parse_base = parse_base
+        self.verbose = verbose
+        self.urls = list()
+        self.urls_inner = list()
+        self.urls_outer = list()
+            
+    ## get urls recursivelly
+    def recursiveUrl(self, url, link, depth):
         try:
             shref = link['href']
-            if not 'http' in shref or not 'www' in shref:
-                url_shref = url + shref
+            if not 'http' in shref and not 'www' in shref:
+                url_shref = urljoin(url, shref) 
             else:
                 url_shref = shref
-            if verbose: print('url_shref:',url_shref)
+            if self.verbose: print('url_shref:',url_shref)
+            if not url_shref in self.urls: self.urls.append(url_shref)
+        except:
+            print('hay error', url, shref)
+            return   
+        
+        if depth == self.max_depth:
+            return
+        else:
             page = requests.get(url_shref)
             soup = BeautifulSoup(page.text, 'html.parser')
-            newlink = soup.find('a')
-        except:
-            return url
-   
-        if newlink is None or len(newlink) == 0:
-            return link
-        else:
-            return link, recursiveUrl(url, newlink, depth + 1, max_depth, verbose)
+            newlink = soup.find('a')   
+            if newlink is None or len(newlink) == 0:
+                return
+            else:
+                self.recursiveUrl(url, newlink, depth + 1)
+    
+    ## get links
+    def getLinks(self, url):
+        url_base = get_base_url(url)
+        if self.parse_base: url = url_base
+        if self.verbose: print('url', url)
+        page = requests.get(url)
+        soup = BeautifulSoup(page.text, 'html.parser')
+        links = soup.find_all('a')
+        for link in links:
+            self.recursiveUrl(url, link, 0)
 
-## get links
-def getLinks(url, max_depth = 1, parse_base = False ,verbose = False):
-    assert max_depth > 0, 'the max depth cannot be 0.'
-    if parse_base: url = get_base_url(url)
-    if verbose: print('url', url)
-    page = requests.get(url)
-    soup = BeautifulSoup(page.text, 'html.parser')
-    links = soup.find_all('a')
-    for link in links:
-        links.append(recursiveUrl(url, link, 0, max_depth, verbose))
-    return links
+        self.urls_outer = sorted(list(set([get_base_url(exclude_self(l, url_base, 1)) for l in set(self.urls) if not exclude_self(l, url_base, 1) is None])))
+        self.urls_inner = sorted(list(set([exclude_self(l, url_base, 2) for l in set(self.urls) if not exclude_self(l, url_base, 2) is None])))
 
 
 def main():
     url = "https://jmquintana79.github.io/tech/2016/09/04/a-enviroment-to-develop-with-a-linux-os-and-awesome-wm.html"
-    links = getLinks(url, parse_base = True, verbose = True)
-    print(links)
+    crw = Crawler(max_depth = 1, parse_base = True, verbose = False)
+    crw.getLinks(url)
+    print('--> all:',len(crw.urls), crw.urls)
+    print('--> inner:',len(crw.urls_inner), crw.urls_inner)
+    print('--> outer:',len(crw.urls_outer), crw.urls_outer)
     
     
 if __name__ == '__main__':
