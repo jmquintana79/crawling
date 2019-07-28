@@ -31,7 +31,6 @@ def exclude_self(url, response_url, mode):
         if response_url in url:
             return url
 
-
 def clean(url):
     # regex to check valid url
     regex = re.compile(
@@ -49,13 +48,11 @@ def clean(url):
         # return "not valid url"
         pass
 
-
 def clean_www(url):
     if 'www.' in url:
         return url.replace('www.', '')
     else:
         return url
-
 
 def get_base_url(url):
     if url != "":
@@ -63,25 +60,41 @@ def get_base_url(url):
         return "%s://%s" % (u.scheme, u.netloc)
     else:
         return ""
-    
-    
+     
 def get_norm_url( url, module = posixpath ):
     return module.normpath( url )
 
 
-
+## url crawler
 class Crawler():
-    def __init__(self, max_depth = 0, parse_base = False ,verbose = False):
-        self.max_depth = max_depth
-        self.parse_base = parse_base
-        self.verbose = verbose
-        self.urls = list()
+    """
+    url crawler.
+    
+    Attributes defined here:
+        
+        url_base -- base of input url.    
+        urls_inner -- internal urls of the url target.
+        urls_outer -- external urls in website of the url target.
+    """
+    ## constructor
+    def __init__(self, max_depth:bool = 0, is_parse_base:bool = False, is_return_base:bool = False ,verbose:bool = False):
+        """
+        constructor.  
+        max_depth -- maximum depth to parse (default 0).
+        is_parse_base -- parse the base of input url or not (default False).
+        is_return_base -- return the base of output url outer or not (default False).
+        verbose -- display extra information or not (default False).
+        """
+        self._max_depth = max_depth
+        self._is_parse_base = is_parse_base
+        self._is_return_base = is_return_base
+        self._verbose = verbose
+        self.url_base = None
         self.urls_inner = list()
         self.urls_outer = list()
-        self.url_base = None
             
     ## get urls recursivelly
-    def recursiveUrl(self, url, link, depth):
+    def _recursiveUrl(self, url:str, link:str, depth:int):
         try:
             # get href element
             shref = link['href']
@@ -93,10 +106,15 @@ class Crawler():
             # cleaning
             url_shref = clean(url_shref)
             # display
-            if self.verbose: print('url_shref:',url_shref)
+            if self._verbose: print('url_shref:',url_shref)
+            
             ## append rules
             # if it is already available
-            if url_shref in self.urls: return
+            if url_shref in self.urls_inner: return
+            if self._is_return_base: 
+                if get_base_url(url_shref) in self.urls_outer: return
+            else:
+                if url_shref in self.urls_outer: return
             # stop domains
             if len([i for i in stop_domains if i in url_shref])>0: return
             # stop extension
@@ -107,13 +125,21 @@ class Crawler():
             # only extension
             if len(only_extensions)>0:
                 if len([i for i in only_extensions if i in url_shref])==0: return
-            # append and continuous
-            self.urls.append(url_shref)
+                
+            ## append
+            if self.url_base in url_shref:
+                # inner url: append and continuous
+                self.urls_inner.append(url_shref)
+            else:
+                # outer: append and no continous
+                if self._is_return_base: self.urls_outer.append(get_base_url(url_shref))
+                else: self.urls_outer.append(url_shref) 
+                return
         except:
-            if self.verbose: print('[warning] there are any error getting the href element:', link)
+            if self._verbose: print('[warning] there are any error getting the href element:', link)
             return   
         
-        if depth == self.max_depth:
+        if depth == self._max_depth:
             return
         else:
             page = requests.get(url_shref)
@@ -122,40 +148,42 @@ class Crawler():
             if newlink is None or len(newlink) == 0:
                 return
             else:
-                self.recursiveUrl(url, newlink, depth + 1)
+                self._recursiveUrl(url, newlink, depth + 1)
     
     ## get urls
-    def get_urls(self, url):
+    def get_urls(self, url:str):
+        """
+        Get urls recursively.
+        url -- url to be parsed.
+        """
         self.url_base = get_base_url(url)
-        if self.parse_base: url = self.url_base
-        if self.verbose: print('url', url)
+        if self._is_parse_base: url = self.url_base
+        if self._verbose: print('url', url)
         page = requests.get(url)
         soup = BeautifulSoup(page.text, 'html.parser')
         links = soup.find_all('a')
         for link in links:
-            self.recursiveUrl(url, link, 0)
+            self._recursiveUrl(url, link, 0)
             
-    ## get outer urls
-    def get_urls_outer(self):
-        assert len(self.urls) > 0, "urls have to be collected previously."
-        self.urls_outer = sorted(list(set([get_base_url(exclude_self(l, self.url_base, 1)) for l in set(self.urls) if not exclude_self(l, self.url_base, 1) is None])))
-
-    ## get outer urls
-    def get_urls_inner(self):
-        assert len(self.urls) > 0, "urls have to be collected previously."
-        self.urls_inner =  sorted(list(set([exclude_self(l, self.url_base, 2) for l in set(self.urls) if not exclude_self(l, self.url_base, 2) is None])))
-
 
 def main():
+    from datetime import datetime
+    # current time
+    tic = datetime.now()
+    # main
     url = "https://jmquintana79.github.io/tech/2016/09/04/a-enviroment-to-develop-with-a-linux-os-and-awesome-wm.html"
-    crw = Crawler(max_depth = 0, parse_base = False, verbose = False)
+    crw = Crawler(max_depth = 1, is_parse_base = True, is_return_base = True, verbose = False)
     crw.get_urls(url)
-    print('--> all:',len(crw.urls), crw.urls)
-    crw.get_urls_inner()
-    crw.get_urls_outer()
     print('--> inner:',len(crw.urls_inner), crw.urls_inner)
     print('--> outer:',len(crw.urls_outer), crw.urls_outer)
-    
+    # counting spending time
+    toc = datetime.now()
+    tictoc = ((toc-tic).seconds)/60. # minutes
+    print ("\nProcess start: %s"%tic)
+    print ("Process finish: %s"%toc)
+    print ("Process time spent %s minutes"%tictoc)
+    # return 
+    return    
     
 if __name__ == '__main__':
     main()
