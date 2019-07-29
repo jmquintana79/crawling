@@ -66,7 +66,7 @@ def get_norm_url( url, module = posixpath ):
 
 
 ## url crawler
-class Crawler():
+class URLCrawler():
     """
     url crawler.
     
@@ -172,7 +172,7 @@ def main():
     tic = datetime.now()
     # main
     url = "https://jmquintana79.github.io/tech/2016/09/04/a-enviroment-to-develop-with-a-linux-os-and-awesome-wm.html"
-    crw = Crawler(max_depth = 1, is_parse_base = True, is_return_base = True, verbose = False)
+    crw = URLCrawler(max_depth = 1, is_parse_base = True, is_return_base = True, verbose = False)
     crw.get_urls(url)
     print('--> inner:',len(crw.urls_inner), crw.urls_inner)
     print('--> outer:',len(crw.urls_outer), crw.urls_outer)
