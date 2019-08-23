@@ -12,4 +12,4 @@ dependencies:
     - beautifulsoup4 # para el text parser
 
 # and then...
-#conda install -n keywords -c conda-forge textacy==0.8.0
+#conda install -n crawling -c conda-forge textacy==0.8.0
