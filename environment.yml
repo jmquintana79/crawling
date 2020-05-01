@@ -8,8 +8,11 @@ dependencies:
   - click
   - spyder-kernels
   - pip:
+    - nltk
     - langdetect # deteccion de idiomas
     - beautifulsoup4 # para el text parser
+    - newspaper3k
+    - webarticle2text
 
 # and then...
 #conda install -n crawling -c conda-forge textacy==0.8.0
