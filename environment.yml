@@ -5,14 +5,15 @@ dependencies:
   #- scipy==1.1.0
   #- pandas==0.23.4
   #- numpy==1.15.1
-  - click
-  - spyder-kernels
+  #- click
+  #- spyder-kernels
   - pip:
     - nltk
-    - langdetect # deteccion de idiomas
+    #- langdetect # deteccion de idiomas
     - beautifulsoup4 # para el text parser
     - newspaper3k
-    - webarticle2text
+    - sentence-splitter
+    - rapidfuzz
 
 # and then...
 #conda install -n crawling -c conda-forge textacy==0.8.0
